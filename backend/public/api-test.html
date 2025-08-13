@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Tester - Afhaalrestaurant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .test-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .test-card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .response-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .response-box h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        .response-content {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .token-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            display: none;
+        }
+        .token-box.show {
+            display: block;
+        }
+        .token-value {
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .loading.show {
+            display: block;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .step-indicator {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍕 Afhaalrestaurant API Tester</h1>
+        
+        <div class="test-grid">
+            <!-- Test 1: Basic API -->
+            <div class="test-card">
+                <h2>1️⃣ Test Basis API</h2>
+                <p>Check of de API überhaupt werkt</p>
+                <button class="btn" onclick="testAPI()">Test API Connection</button>
+                <div id="test-response" class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <!-- Test 2: Login -->
+            <div class="test-card">
+                <h2>2️⃣ Test Login</h2>
+                <input type="email" id="login-email" value="admin@restaurant.com" placeholder="Email">
+                <input type="password" id="login-password" value="password" placeholder="Password">
+                <button class="btn btn-success" onclick="testLogin()">Login als Admin</button>
+                <button class="btn" onclick="testLoginCustomer()">Login als Klant</button>
+                <div id="login-response" class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <!-- Test 3: Register -->
+            <div class="test-card">
+                <h2>3️⃣ Test Registratie</h2>
+                <input type="text" id="reg-name" placeholder="Naam" value="Test User">
+                <input type="email" id="reg-email" placeholder="Email">
+                <input type="password" id="reg-password" placeholder="Password" value="password123">
+                <button class="btn btn-warning" onclick="testRegister()">Registreer Nieuwe User</button>
+                <div id="register-response" class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <!-- Test 4: Protected Routes -->
+            <div class="test-card">
+                <h2>4️⃣ Test Protected Routes</h2>
+                <p>Eerst inloggen voor deze tests!</p>
+                <button class="btn" onclick="testUserInfo()">Get User Info</button>
+                <button class="btn" onclick="testAdminDashboard()">Admin Dashboard</button>
+                <button class="btn" onclick="testLogout()">Logout</button>
+                <div id="protected-response" class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Token Display -->
+        <div id="token-box" class="token-box">
+            <strong>🔑 Huidige Token:</strong>
+            <div class="token-value" id="current-token">Geen token</div>
+        </div>
+
+        <!-- Response Display -->
+        <div class="response-box">
+            <h3>📡 Response:</h3>
+            <div id="response-content" class="response-content">Klik op een test button om te beginnen...</div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = '';
+        const API_URL = 'http://localhost:8000/api';
+
+        function showResponse(elementId, data, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            element.classList.remove('loading');
+            element.innerHTML = `
+                <div class="status ${isSuccess ? 'success' : 'error'}">
+                    ${isSuccess ? '✅ Success' : '❌ Error'}
+                </div>
+            `;
+            
+            document.getElementById('response-content').textContent = 
+                typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+        }
+
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            element.classList.add('loading');
+            element.innerHTML = '<div class="spinner"></div>';
+        }
+
+        function saveToken(token) {
+            authToken = token;
+            document.getElementById('current-token').textContent = token;
+            document.getElementById('token-box').classList.add('show');
+        }
+
+        async function testAPI() {
+            showLoading('test-response');
+            try {
+                const response = await fetch(`${API_URL}/test`);
+                const data = await response.json();
+                showResponse('test-response', data, response.ok);
+            } catch (error) {
+                showResponse('test-response', 'Error: ' + error.message, false);
+            }
+        }
+
+        async function testLogin() {
+            showLoading('login-response');
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await response.json();
+                
+                if (data.success && data.data?.token) {
+                    saveToken(data.data.token);
+                }
+                
+                showResponse('login-response', data, response.ok);
+            } catch (error) {
+                showResponse('login-response', 'Error: ' + error.message, false);
+            }
+        }
+
+        async function testLoginCustomer() {
+            document.getElementById('login-email').value = 'klant@test.com';
+            document.getElementById('login-password').value = 'password';
+            await testLogin();
+        }
+
+        async function testRegister() {
+            showLoading('register-response');
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value || `test${Date.now()}@example.com`;
+            const password = document.getElementById('reg-password').value;
+            
+            document.getElementById('reg-email').value = email;
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name,
+                        email,
+                        password,
+                        password_confirmation: password
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.success && data.data?.token) {
+                    saveToken(data.data.token);
+                }
+                
+                showResponse('register-response', data, response.ok);
+            } catch (error) {
+                showResponse('register-response', 'Error: ' + error.message, false);
+            }
+        }
+
+        async function testUserInfo() {
+            if (!authToken) {
+                showResponse('protected-response', 'Eerst inloggen! Klik op "Login als Admin"', false);
+                return;
+            }
+            
+            showLoading('protected-response');
+            try {
+                const response = await fetch(`${API_URL}/user`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                showResponse('protected-response', data, response.ok);
+            } catch (error) {
+                showResponse('protected-response', 'Error: ' + error.message, false);
+            }
+        }
+
+        async function testAdminDashboard() {
+            if (!authToken) {
+                showResponse('protected-response', 'Eerst inloggen als admin!', false);
+                return;
+            }
+            
+            showLoading('protected-response');
+            try {
+                const response = await fetch(`${API_URL}/admin/dashboard`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                showResponse('protected-response', data, response.ok);
+            } catch (error) {
+                showResponse('protected-response', 'Error: ' + error.message, false);
+            }
+        }
+
+        async function testLogout() {
+            if (!authToken) {
+                showResponse('protected-response', 'Niet ingelogd!', false);
+                return;
+            }
+            
+            showLoading('protected-response');
+            try {
+                const response = await fetch(`${API_URL}/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    authToken = '';
+                    document.getElementById('token-box').classList.remove('show');
+                }
+                
+                showResponse('protected-response', data, response.ok);
+            } catch (error) {
+                showResponse('protected-response', 'Error: ' + error.message, false);
+            }
+        }
+
+        // Auto-generate email for register
+        document.getElementById('reg-email').value = `test${Date.now()}@example.com`;
+    </script>
+</body>
+</html>

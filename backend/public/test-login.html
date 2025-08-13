@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Auth API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .token-display {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍕 Afhaalrestaurant API Test</h1>
+        
+        <h2>Test API Connection</h2>
+        <button onclick="testAPI()">Test API</button>
+        
+        <h2>Login Test</h2>
+        <button onclick="loginAdmin()">Login als Admin</button>
+        <button onclick="loginCustomer()">Login als Klant</button>
+        
+        <h2>Register Test</h2>
+        <button onclick="registerUser()">Registreer Nieuwe User</button>
+        
+        <h2>Protected Routes Test</h2>
+        <button onclick="getUser()">Get User Info (Requires Token)</button>
+        <button onclick="getAdminDashboard()">Admin Dashboard (Requires Admin)</button>
+        
+        <div id="token-display" class="token-display" style="display:none;">
+            <strong>Token:</strong> <span id="token-value"></span>
+        </div>
+        
+        <div id="response" class="response"></div>
+    </div>
+
+    <script>
+        let authToken = '';
+        
+        function showResponse(data, isError = false) {
+            const responseEl = document.getElementById('response');
+            responseEl.className = 'response ' + (isError ? 'error' : 'success');
+            responseEl.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+        }
+        
+        function saveToken(token) {
+            authToken = token;
+            document.getElementById('token-value').textContent = token;
+            document.getElementById('token-display').style.display = 'block';
+        }
+        
+        async function testAPI() {
+            try {
+                const response = await fetch('http://localhost:8000/api/test');
+                const data = await response.json();
+                showResponse(data);
+            } catch (error) {
+                showResponse('Error: ' + error.message, true);
+            }
+        }
+        
+        async function loginAdmin() {
+            try {
+                const response = await fetch('http://localhost:8000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@restaurant.com',
+                        password: 'password'
+                    })
+                });
+                const data = await response.json();
+                if (data.success && data.data.token) {
+                    saveToken(data.data.token);
+                    showResponse('✅ Login succesvol!\n\n' + JSON.stringify(data, null, 2));
+                } else {
+                    showResponse(data, !data.success);
+                }
+            } catch (error) {
+                showResponse('Error: ' + error.message, true);
+            }
+        }
+        
+        async function loginCustomer() {
+            try {
+                const response = await fetch('http://localhost:8000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'klant@test.com',
+                        password: 'password'
+                    })
+                });
+                const data = await response.json();
+                if (data.success && data.data.token) {
+                    saveToken(data.data.token);
+                    showResponse('✅ Login succesvol!\n\n' + JSON.stringify(data, null, 2));
+                } else {
+                    showResponse(data, !data.success);
+                }
+            } catch (error) {
+                showResponse('Error: ' + error.message, true);
+            }
+        }
+        
+        async function registerUser() {
+            const randomEmail = `test${Date.now()}@example.com`;
+            try {
+                const response = await fetch('http://localhost:8000/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: 'Test User',
+                        email: randomEmail,
+                        password: 'password123',
+                        password_confirmation: 'password123',
+                        phone: '0612345678',
+                        address: 'Teststraat 123',
+                        postal_code: '1234 AB',
+                        city: 'Amsterdam'
+                    })
+                });
+                const data = await response.json();
+                if (data.success && data.data.token) {
+                    saveToken(data.data.token);
+                    showResponse('✅ Registratie succesvol!\n\n' + JSON.stringify(data, null, 2));
+                } else {
+                    showResponse(data, !data.success);
+                }
+            } catch (error) {
+                showResponse('Error: ' + error.message, true);
+            }
+        }
+        
+        async function getUser() {
+            if (!authToken) {
+                showResponse('Eerst inloggen! Klik op "Login als Admin" of "Login als Klant"', true);
+                return;
+            }
+            try {
+                const response = await fetch('http://localhost:8000/api/user', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                showResponse(data, !data.success);
+            } catch (error) {
+                showResponse('Error: ' + error.message, true);
+            }
+        }
+        
+        async function getAdminDashboard() {
+            if (!authToken) {
+                showResponse('Eerst inloggen als admin!', true);
+                return;
+            }
+            try {
+                const response = await fetch('http://localhost:8000/api/admin/dashboard', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                showResponse(data, !data.success);
+            } catch (error) {
+                showResponse('Error: ' + error.message, true);
+            }
+        }
+    </script>
+</body>
+</html>
