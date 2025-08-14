@@ -10,6 +10,27 @@ use App\Http\Controllers\PasswordResetController;
 | API Routes
 |--------------------------------------------------------------------------
 */
+// TIJDELIJKE TEST - verwijder later
+Route::get('/test-cart-noauth', function () {
+    $user = \App\Models\User::first();
+    $product = \App\Models\Product::first();
+    
+    if (!$product || !$user) {
+        return response()->json([
+            'error' => 'No products or users found',
+            'products_count' => \App\Models\Product::count(),
+            'users_count' => \App\Models\User::count()
+        ]);
+    }
+    
+    return response()->json([
+        'message' => 'Test zonder auth',
+        'user' => $user->email,
+        'product' => $product->name,
+        'cart_works' => class_exists(\App\Models\CartItem::class)
+    ]);
+});
+
 
 // Test route (uit Chat 1)
 Route::get('/test', function () {
@@ -64,6 +85,58 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
         Route::get('/', [AuthController::class, 'user']);
         Route::put('/profile', [AuthController::class, 'updateProfile']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
+    });
+    
+    // Test Cart Routes (voor elke ingelogde gebruiker)
+    Route::get('/test-cart-add', function () {
+        $user = auth()->user();
+        $product = \App\Models\Product::first();
+        
+        if (!$product) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Geen producten gevonden. Run: php artisan db:seed'
+            ], 404);
+        }
+        
+        $cartItem = \App\Models\CartItem::updateOrCreate(
+            [
+                'user_id' => $user->id,
+                'product_id' => $product->id
+            ],
+            [
+                'quantity' => 2,
+                'price' => $product->price,
+                'special_instructions' => 'Extra pittig graag'
+            ]
+        );
+        
+        return response()->json([
+            'message' => 'Product toegevoegd aan cart',
+            'cart_item' => $cartItem->load('product'),
+            'cart_total' => $user->cartTotal,
+            'cart_count' => $user->cartCount
+        ]);
+    });
+    
+    Route::get('/test-cart-view', function () {
+        $user = auth()->user();
+        
+        return response()->json([
+            'cart_items' => $user->cart,
+            'total' => $user->cartTotal,
+            'count' => $user->cartCount
+        ]);
+    });
+    
+    Route::get('/test-cart-clear', function () {
+        $user = auth()->user();
+        $user->clearCart();
+        
+        return response()->json([
+            'message' => 'Cart geleegd',
+            'cart_items' => $user->cart
+        ]);
     });
     
     // Customer routes (customers + admins)

@@ -46,4 +46,57 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    // Voeg deze methodes toe aan je User model:
+
+    /**
+     * Get the cart items for the user
+     */
+    public function cartItems()
+    {
+        return $this->hasMany(CartItem::class);
+    }
+
+    /**
+     * Get cart items with product details
+     */
+    public function cart()
+    {
+        return $this->cartItems()->with('product');
+    }
+
+    /**
+     * Get cart total
+     */
+    public function getCartTotalAttribute(): float
+    {
+        return $this->cartItems->sum(function ($item) {
+            return $item->quantity * $item->price;
+        });
+    }
+
+    /**
+     * Get cart item count
+     */
+    public function getCartCountAttribute(): int
+    {
+        return $this->cartItems->sum('quantity');
+    }
+
+    /**
+     * Check if product is in cart
+     */
+    public function hasProductInCart($productId): bool
+    {
+        return $this->cartItems()->where('product_id', $productId)->exists();
+    }
+
+    /**
+     * Clear the cart
+     */
+    public function clearCart(): void
+    {
+        $this->cartItems()->delete();
+    }
+
 }
