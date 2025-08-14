@@ -4,42 +4,22 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PasswordResetController;
+use App\Http\Controllers\Api\ProductController;
 
 /*
 |--------------------------------------------------------------------------
 | API Routes
 |--------------------------------------------------------------------------
 */
-// TIJDELIJKE TEST - verwijder later
-Route::get('/test-cart-noauth', function () {
-    $user = \App\Models\User::first();
-    $product = \App\Models\Product::first();
-    
-    if (!$product || !$user) {
-        return response()->json([
-            'error' => 'No products or users found',
-            'products_count' => \App\Models\Product::count(),
-            'users_count' => \App\Models\User::count()
-        ]);
-    }
-    
-    return response()->json([
-        'message' => 'Test zonder auth',
-        'user' => $user->email,
-        'product' => $product->name,
-        'cart_works' => class_exists(\App\Models\CartItem::class)
-    ]);
-});
-
 
 // Test route (uit Chat 1)
-Route::get('/test', function () {
-    return response()->json([
-        'message' => 'API werkt!',
-        'laravel_version' => app()->version(),
-        'timestamp' => now()
-    ]);
-});
+// Route::get('/test', function () {
+//     return response()->json([
+//         'message' => 'API werkt!',
+//         'laravel_version' => app()->version(),
+//         'timestamp' => now()
+//     ]);
+// });
 
 // Stats route (uit Chat 1)
 Route::get('/stats', function () {
@@ -49,6 +29,19 @@ Route::get('/stats', function () {
         'products' => \App\Models\Product::count(),
         'orders' => \App\Models\Order::count(),
     ]);
+});
+
+/*
+|--------------------------------------------------------------------------
+| PUBLIC Routes - Geen authenticatie nodig
+|--------------------------------------------------------------------------
+*/
+
+// Product Routes (publiek toegankelijk)
+Route::group(['prefix' => 'products'], function () {
+    Route::get('/', [ProductController::class, 'index']);          // Alle producten
+    Route::get('/{id}', [ProductController::class, 'show']);       // Enkel product
+    Route::get('/category/{categoryId}', [ProductController::class, 'byCategory']); // Per categorie
 });
 
 /*
@@ -147,7 +140,11 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
         // Route::post('/orders', [OrderController::class, 'store']);
     });
     
-    // Admin only routes
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Only Routes
+    |--------------------------------------------------------------------------
+    */
     Route::group(['middleware' => ['admin'], 'prefix' => 'admin'], function () {
         // Dashboard stats
         Route::get('/dashboard', function () {
@@ -164,8 +161,15 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
             ]);
         });
         
+        // Product management
+        Route::group(['prefix' => 'products'], function () {
+            Route::post('/', [ProductController::class, 'store']);
+            Route::put('/{id}', [ProductController::class, 'update']);
+            Route::delete('/{id}', [ProductController::class, 'destroy']);
+            Route::patch('/{id}/toggle-availability', [ProductController::class, 'toggleAvailability']);
+        });
+        
         // Toekomstige admin routes (Chat 3-4)
-        // Route::apiResource('products', ProductController::class);
         // Route::apiResource('categories', CategoryController::class);
         // Route::apiResource('orders', OrderController::class);
         // Route::apiResource('users', UserController::class);
