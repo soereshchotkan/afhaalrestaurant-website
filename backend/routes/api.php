@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\CategoryController;  // ← TOEGEVOEGD
 
 /*
 |--------------------------------------------------------------------------
@@ -42,6 +43,13 @@ Route::group(['prefix' => 'products'], function () {
     Route::get('/', [ProductController::class, 'index']);
     Route::get('/{id}', [ProductController::class, 'show']);
     Route::get('/category/{categoryId}', [ProductController::class, 'byCategory']);
+});
+
+// Category Routes (publiek toegankelijk)    ← TOEGEVOEGD
+Route::group(['prefix' => 'categories'], function () {
+    Route::get('/', [CategoryController::class, 'index']);
+    Route::get('/active', [CategoryController::class, 'activeWithProducts']);
+    Route::get('/{id}', [CategoryController::class, 'show']);
 });
 
 /*
@@ -116,8 +124,12 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
             Route::patch('/{id}/toggle-availability', [ProductController::class, 'toggleAvailability']);
         });
         
-        // Category management - komt in volgende stap
-        // Route::apiResource('categories', CategoryController::class)->except(['index', 'show']);
+        // Category management    ← TOEGEVOEGD
+        Route::group(['prefix' => 'categories'], function () {
+            Route::post('/', [CategoryController::class, 'store']);
+            Route::put('/{id}', [CategoryController::class, 'update']);
+            Route::delete('/{id}', [CategoryController::class, 'destroy']);
+        });
     });
 });
 
