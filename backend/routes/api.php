@@ -12,16 +12,16 @@ use App\Http\Controllers\Api\ProductController;
 |--------------------------------------------------------------------------
 */
 
-// Test route (uit Chat 1)
-// Route::get('/test', function () {
-//     return response()->json([
-//         'message' => 'API werkt!',
-//         'laravel_version' => app()->version(),
-//         'timestamp' => now()
-//     ]);
-// });
+// Health check
+Route::get('/test', function () {
+    return response()->json([
+        'message' => 'API werkt!',
+        'laravel_version' => app()->version(),
+        'timestamp' => now()
+    ]);
+});
 
-// Stats route (uit Chat 1)
+// Public stats
 Route::get('/stats', function () {
     return response()->json([
         'users' => \App\Models\User::count(),
@@ -39,21 +39,21 @@ Route::get('/stats', function () {
 
 // Product Routes (publiek toegankelijk)
 Route::group(['prefix' => 'products'], function () {
-    Route::get('/', [ProductController::class, 'index']);          // Alle producten
-    Route::get('/{id}', [ProductController::class, 'show']);       // Enkel product
-    Route::get('/category/{categoryId}', [ProductController::class, 'byCategory']); // Per categorie
+    Route::get('/', [ProductController::class, 'index']);
+    Route::get('/{id}', [ProductController::class, 'show']);
+    Route::get('/category/{categoryId}', [ProductController::class, 'byCategory']);
 });
 
 /*
 |--------------------------------------------------------------------------
-| Authentication Routes - Publiek
+| Authentication Routes
 |--------------------------------------------------------------------------
 */
 Route::group(['prefix' => 'auth'], function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
     
-    // Password Reset Routes
+    // Password Reset
     Route::post('/password/email', [PasswordResetController::class, 'sendResetLink']);
     Route::post('/password/reset', [PasswordResetController::class, 'reset']);
     Route::post('/password/verify-token', [PasswordResetController::class, 'verifyToken']);
@@ -66,78 +66,24 @@ Route::group(['prefix' => 'auth'], function () {
 */
 Route::group(['middleware' => ['auth:sanctum']], function () {
     
-    // Auth routes
+    // Auth management
     Route::group(['prefix' => 'auth'], function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/logout-all', [AuthController::class, 'logoutAll']);
         Route::post('/refresh', [AuthController::class, 'refresh']);
     });
     
-    // User routes
+    // User profile
     Route::group(['prefix' => 'user'], function () {
         Route::get('/', [AuthController::class, 'user']);
         Route::put('/profile', [AuthController::class, 'updateProfile']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
     });
     
-    // Test Cart Routes (voor elke ingelogde gebruiker)
-    Route::get('/test-cart-add', function () {
-        $user = auth()->user();
-        $product = \App\Models\Product::first();
-        
-        if (!$product) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Geen producten gevonden. Run: php artisan db:seed'
-            ], 404);
-        }
-        
-        $cartItem = \App\Models\CartItem::updateOrCreate(
-            [
-                'user_id' => $user->id,
-                'product_id' => $product->id
-            ],
-            [
-                'quantity' => 2,
-                'price' => $product->price,
-                'special_instructions' => 'Extra pittig graag'
-            ]
-        );
-        
-        return response()->json([
-            'message' => 'Product toegevoegd aan cart',
-            'cart_item' => $cartItem->load('product'),
-            'cart_total' => $user->cartTotal,
-            'cart_count' => $user->cartCount
-        ]);
-    });
-    
-    Route::get('/test-cart-view', function () {
-        $user = auth()->user();
-        
-        return response()->json([
-            'cart_items' => $user->cart,
-            'total' => $user->cartTotal,
-            'count' => $user->cartCount
-        ]);
-    });
-    
-    Route::get('/test-cart-clear', function () {
-        $user = auth()->user();
-        $user->clearCart();
-        
-        return response()->json([
-            'message' => 'Cart geleegd',
-            'cart_items' => $user->cart
-        ]);
-    });
-    
-    // Customer routes (customers + admins)
+    // Customer area
     Route::group(['prefix' => 'customer'], function () {
-        // Toekomstige customer routes (Chat 3-4)
-        // Route::get('/orders', [OrderController::class, 'myOrders']);
-        // Route::get('/orders/{id}', [OrderController::class, 'show']);
-        // Route::post('/orders', [OrderController::class, 'store']);
+        // Cart routes komen hier in Chat 4
+        // Order routes komen hier in Chat 4
     });
     
     /*
@@ -146,13 +92,14 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     |--------------------------------------------------------------------------
     */
     Route::group(['middleware' => ['admin'], 'prefix' => 'admin'], function () {
-        // Dashboard stats
+        
+        // Dashboard
         Route::get('/dashboard', function () {
             return response()->json([
                 'success' => true,
                 'data' => [
                     'total_users' => \App\Models\User::count(),
-                    'total_customers' => \App\Models\User::where('role', 'customer')->count(),
+                    'total_customers' => \App\Models\User::where('is_admin', false)->count(),
                     'total_products' => \App\Models\Product::count(),
                     'total_categories' => \App\Models\Category::count(),
                     'total_orders' => \App\Models\Order::count(),
@@ -169,10 +116,8 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
             Route::patch('/{id}/toggle-availability', [ProductController::class, 'toggleAvailability']);
         });
         
-        // Toekomstige admin routes (Chat 3-4)
-        // Route::apiResource('categories', CategoryController::class);
-        // Route::apiResource('orders', OrderController::class);
-        // Route::apiResource('users', UserController::class);
+        // Category management - komt in volgende stap
+        // Route::apiResource('categories', CategoryController::class)->except(['index', 'show']);
     });
 });
 
