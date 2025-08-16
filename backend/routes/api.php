@@ -6,6 +6,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\CategoryController;  // ← TOEGEVOEGD
+use App\Http\Controllers\Api\CartController;
 
 /*
 |--------------------------------------------------------------------------
@@ -88,6 +89,17 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
         Route::post('/change-password', [AuthController::class, 'changePassword']);
     });
     
+    // Cart management (voor ingelogde gebruikers)
+    Route::group(['prefix' => 'cart'], function () {
+        Route::get('/', [CartController::class, 'index']);                      // Bekijk cart
+        Route::post('/add', [CartController::class, 'addToCart']);             // Voeg product toe
+        Route::put('/update/{id}', [CartController::class, 'updateQuantity']); // Update aantal
+        Route::put('/instructions/{id}', [CartController::class, 'updateInstructions']); // Update instructies
+        Route::delete('/remove/{id}', [CartController::class, 'removeItem']);  // Verwijder item
+        Route::delete('/clear', [CartController::class, 'clearCart']);         // Leeg cart
+        Route::get('/validate', [CartController::class, 'validateCart']);      // Valideer cart
+    });
+
     // Customer area
     Route::group(['prefix' => 'customer'], function () {
         // Cart routes komen hier in Chat 4
