@@ -13,6 +13,12 @@ use Carbon\Carbon;
 
 class OrderController extends Controller
 {
+    /*
+    |--------------------------------------------------------------------------
+    | CUSTOMER ENDPOINTS
+    |--------------------------------------------------------------------------
+    */
+
     /**
      * Place an order (checkout)
      */
@@ -270,5 +276,284 @@ class OrderController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : 'Server error'
             ], 500);
         }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | ADMIN ENDPOINTS
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * ADMIN: Get all orders with filters
+     */
+    public function adminIndex(Request $request): JsonResponse
+    {
+        try {
+            $query = Order::with(['items.product', 'user']);
+
+            // Filter op status
+            if ($request->has('status') && $request->status !== '') {
+                $query->where('status', $request->status);
+            }
+
+            // Filter op payment_status
+            if ($request->has('payment_status') && $request->payment_status !== '') {
+                $query->where('payment_status', $request->payment_status);
+            }
+
+            // Filter op datum
+            if ($request->has('date') && $request->date !== '') {
+                $query->whereDate('created_at', $request->date);
+            }
+
+            // Filter op pickup_time (vandaag, morgen, etc.)
+            if ($request->has('pickup_date') && $request->pickup_date !== '') {
+                $query->whereDate('pickup_time', $request->pickup_date);
+            }
+
+            // Zoeken op order number of customer naam
+            if ($request->has('search') && $request->search !== '') {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('order_number', 'like', "%{$search}%")
+                      ->orWhere('customer_name', 'like', "%{$search}%")
+                      ->orWhere('customer_phone', 'like', "%{$search}%");
+                });
+            }
+
+            // Sorteer op created_at (nieuwste eerst)
+            $query->orderBy('created_at', 'desc');
+
+            $orders = $query->paginate(20);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'orders' => $orders->items(),
+                    'pagination' => [
+                        'current_page' => $orders->currentPage(),
+                        'total_pages' => $orders->lastPage(),
+                        'total_orders' => $orders->total(),
+                        'per_page' => $orders->perPage()
+                    ],
+                    'summary' => [
+                        'total_today' => Order::whereDate('created_at', today())->count(),
+                        'pending' => Order::where('status', 'pending')->count(),
+                        'confirmed' => Order::where('status', 'confirmed')->count(),
+                        'preparing' => Order::where('status', 'preparing')->count(),
+                        'ready' => Order::where('status', 'ready')->count(),
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Fout bij ophalen bestellingen',
+                'error' => config('app.debug') ? $e->getMessage() : 'Server error'
+            ], 500);
+        }
+    }
+
+    /**
+     * ADMIN: Update order status
+     */
+    public function updateStatus(Request $request, $id): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'status' => 'required|in:pending,confirmed,preparing,ready,completed,cancelled',
+                'notes' => 'nullable|string|max:1000',
+                'estimated_time' => 'nullable|integer|min:5|max:120' // in minuten
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validatie fout',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $order = Order::with(['items.product', 'user'])->find($id);
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bestelling niet gevonden'
+                ], 404);
+            }
+
+            $oldStatus = $order->status;
+            $newStatus = $request->status;
+
+            // Update order
+            $updateData = ['status' => $newStatus];
+            
+            if ($request->has('notes')) {
+                $updateData['notes'] = $request->notes;
+            }
+
+            // Voeg estimated preparation time toe als status confirmed wordt
+            if ($newStatus === 'confirmed' && $request->has('estimated_time')) {
+                $updateData['pickup_time'] = now()->addMinutes($request->estimated_time);
+            }
+
+            $order->update($updateData);
+
+            // Log status change voor geschiedenis
+            $statusMessage = $this->getStatusChangeMessage($oldStatus, $newStatus);
+
+            return response()->json([
+                'success' => true,
+                'message' => $statusMessage,
+                'data' => [
+                    'order' => $order->fresh(['items.product', 'user']),
+                    'status_changed' => [
+                        'from' => $oldStatus,
+                        'to' => $newStatus,
+                        'changed_at' => now()->format('d-m-Y H:i:s')
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Fout bij updaten bestelling status',
+                'error' => config('app.debug') ? $e->getMessage() : 'Server error'
+            ], 500);
+        }
+    }
+
+    /**
+     * ADMIN: Mark order as paid
+     */
+    public function markAsPaid(Request $request, $id): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'transaction_id' => 'nullable|string|max:255'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validatie fout',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $order = Order::find($id);
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bestelling niet gevonden'
+                ], 404);
+            }
+
+            $order->update([
+                'payment_status' => 'paid',
+                'payment_transaction_id' => $request->transaction_id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Bestelling gemarkeerd als betaald',
+                'data' => [
+                    'order' => $order->load(['items.product', 'user'])
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Fout bij updaten payment status',
+                'error' => config('app.debug') ? $e->getMessage() : 'Server error'
+            ], 500);
+        }
+    }
+
+    /**
+     * ADMIN: Get order statistics for dashboard
+     */
+    public function adminStats(): JsonResponse
+    {
+        try {
+            $today = today();
+            $thisWeek = now()->startOfWeek();
+            $thisMonth = now()->startOfMonth();
+
+            $stats = [
+                'today' => [
+                    'total_orders' => Order::whereDate('created_at', $today)->count(),
+                    'total_revenue' => Order::whereDate('created_at', $today)
+                                          ->where('payment_status', 'paid')
+                                          ->sum('total_amount'),
+                    'pending_orders' => Order::whereDate('created_at', $today)
+                                            ->where('status', 'pending')
+                                            ->count(),
+                ],
+                'this_week' => [
+                    'total_orders' => Order::where('created_at', '>=', $thisWeek)->count(),
+                    'total_revenue' => Order::where('created_at', '>=', $thisWeek)
+                                           ->where('payment_status', 'paid')
+                                           ->sum('total_amount'),
+                ],
+                'this_month' => [
+                    'total_orders' => Order::where('created_at', '>=', $thisMonth)->count(),
+                    'total_revenue' => Order::where('created_at', '>=', $thisMonth)
+                                           ->where('payment_status', 'paid')
+                                           ->sum('total_amount'),
+                ],
+                'status_counts' => [
+                    'pending' => Order::where('status', 'pending')->count(),
+                    'confirmed' => Order::where('status', 'confirmed')->count(),
+                    'preparing' => Order::where('status', 'preparing')->count(),
+                    'ready' => Order::where('status', 'ready')->count(),
+                    'completed' => Order::where('status', 'completed')->count(),
+                    'cancelled' => Order::where('status', 'cancelled')->count(),
+                ],
+                'recent_orders' => Order::with(['items.product', 'user'])
+                                       ->latest()
+                                       ->take(5)
+                                       ->get()
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $stats
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Fout bij ophalen statistieken',
+                'error' => config('app.debug') ? $e->getMessage() : 'Server error'
+            ], 500);
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | HELPER METHODS
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Helper method voor status change messages
+     */
+    private function getStatusChangeMessage($oldStatus, $newStatus): string
+    {
+        return match($newStatus) {
+            'confirmed' => 'Bestelling bevestigd',
+            'preparing' => 'Bestelling wordt bereid',
+            'ready' => 'Bestelling is klaar voor afhaal',
+            'completed' => 'Bestelling voltooid',
+            'cancelled' => 'Bestelling geannuleerd',
+            default => 'Bestelling status bijgewerkt'
+        };
     }
 }

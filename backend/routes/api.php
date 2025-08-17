@@ -156,6 +156,15 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
             Route::put('/{id}', [CategoryController::class, 'update']);
             Route::delete('/{id}', [CategoryController::class, 'destroy']);
         });
+
+        // Order management (in admin routes)
+        Route::group(['prefix' => 'orders'], function () {
+            Route::get('/', [App\Http\Controllers\OrderController::class, 'adminIndex']);           // Alle orders met filters
+            Route::get('/stats', [App\Http\Controllers\OrderController::class, 'adminStats']);     // Dashboard stats
+            Route::put('/{id}/status', [App\Http\Controllers\OrderController::class, 'updateStatus']); // Update status
+            Route::put('/{id}/mark-paid', [App\Http\Controllers\OrderController::class, 'markAsPaid']); // Mark as paid
+            Route::get('/{id}', [App\Http\Controllers\OrderController::class, 'show']);            // Order details (hergebruikt)
+        });
     });
 });
 
