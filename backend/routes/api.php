@@ -53,6 +53,19 @@ Route::group(['prefix' => 'categories'], function () {
     Route::get('/{id}', [CategoryController::class, 'show']);
 });
 
+// Order routes (authenticated users)
+Route::middleware('auth:sanctum')->group(function () {
+    // Checkout
+    Route::post('/orders/checkout', [App\Http\Controllers\OrderController::class, 'checkout']);
+    
+    // Order history & details
+    Route::get('/orders/history', [App\Http\Controllers\OrderController::class, 'history']);
+    Route::get('/orders/{id}', [App\Http\Controllers\OrderController::class, 'show']);
+    
+    // Cancel order
+    Route::put('/orders/{id}/cancel', [App\Http\Controllers\OrderController::class, 'cancel']);
+});
+
 /*
 |--------------------------------------------------------------------------
 | Authentication Routes
@@ -97,7 +110,8 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
         Route::put('/instructions/{id}', [CartController::class, 'updateInstructions']); // Update instructies
         Route::delete('/remove/{id}', [CartController::class, 'removeItem']);  // Verwijder item
         Route::delete('/clear', [CartController::class, 'clearCart']);         // Leeg cart
-        Route::get('/validate', [CartController::class, 'validateCart']);      // Valideer cart
+        Route::get('/validate', [CartController::class, 'validateCart']);
+        Route::get('/summary', [CartController::class, 'index']);
     });
 
     // Customer area

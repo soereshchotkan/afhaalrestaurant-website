@@ -49,6 +49,10 @@ class User extends Authenticatable
 
     // Voeg deze methodes toe aan je User model:
 
+    public function orders()
+    {
+        return $this->hasMany(Order::class)->orderBy('created_at', 'desc');
+    }
     /**
      * Get the cart items for the user
      */
